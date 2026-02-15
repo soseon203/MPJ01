@@ -12,7 +12,7 @@ TypeScript 유니온 타입 정의와 실제 데이터 객체 간의 동기화�
 1. **SkillId 동기화** — `SkillId` 유니온 타입의 모든 값이 `SKILLS` 레코드의 키로 존재하는지, 그 역도 성립하는지
 2. **EnemyId 동기화** — `EnemyId` 유니온 타입의 모든 값이 `ENEMY_DATA` 레코드의 키로 존재하는지, 그 역도 성립하는지
 3. **EnemyId ↔ drawBody() switch** — `Enemy.drawBody()`의 switch 문이 모든 EnemyId를 case로 처리하는지
-4. **SkillRarity 동기화** — `SkillRarity` 유니온의 모든 값이 `SKILL_COSTS`, `RARITY_COLORS`, `SHOP_PROBABILITIES`에서 사용되는지
+4. **SkillRarity 동기화** — `SkillRarity` 유니온의 모든 값이 `SKILL_COSTS`, `RARITY_COLORS`, `SHOP_PROBABILITIES`, `RARITY_MAX_LEVEL`에서 사용되는지
 5. **TargetingStrategy 동기화** — `TargetingStrategy` 유니온의 모든 값이 `TowerCombatSystem`에서 처리되는지
 6. **SkillTag/ElementTag 사용** — 정의된 태그가 실제 `skillData.ts`에서 최소 1회 사용되는지
 
@@ -30,7 +30,7 @@ TypeScript 유니온 타입 정의와 실제 데이터 객체 간의 동기화�
 |------|---------|
 | `src/utils/types.ts` | 모든 유니온 타입 정의 (SkillId, EnemyId, SkillRarity, SkillTag, ElementTag, TargetingStrategy) |
 | `src/utils/constants.ts` | SKILL_COSTS, RARITY_COLORS, SHOP_PROBABILITIES, TOWER_LEVEL_STATS |
-| `src/data/skillData.ts` | `SKILLS` 레코드 — SkillId 키로 인덱싱, 각 스킬의 tags 배열 |
+| `src/data/skillData.ts` | `SKILLS` 레코드 — SkillId 키로 인덱싱, 각 스킬의 tags 배열, RARITY_MAX_LEVEL, RARITY_ORDER, SKILL_EVOLUTION |
 | `src/data/enemyData.ts` | `ENEMY_DATA` 레코드 — EnemyId 키로 인덱싱 |
 | `src/data/synergyData.ts` | `SYNERGIES` 배열 — TagRequirement에서 SkillTag/ElementTag 참조 |
 | `src/entities/Enemy.ts` | `drawBody()` — EnemyId별 switch 문 |
@@ -95,15 +95,18 @@ grep "case '" src/entities/Enemy.ts
 - `SKILL_COSTS` (constants.ts)
 - `RARITY_COLORS` (constants.ts)
 - `RARITY_COLOR_STRINGS` (constants.ts)
-- `RARITY_ORDER` (ShopSystem.ts)
+- `RARITY_MAX_LEVEL` (skillData.ts)
+- `RARITY_ORDER` (skillData.ts)
 
 ```bash
 # SkillRarity 유니온 값 확인
 grep "SkillRarity" src/utils/types.ts
 # SKILL_COSTS 키 확인
 grep -A6 "SKILL_COSTS" src/utils/constants.ts
+# RARITY_MAX_LEVEL 키 확인
+grep -A6 "RARITY_MAX_LEVEL" src/data/skillData.ts
 # RARITY_ORDER 확인
-grep "RARITY_ORDER" src/systems/ShopSystem.ts
+grep "RARITY_ORDER" src/data/skillData.ts
 ```
 
 **PASS 기준:** 모든 SkillRarity 값('normal', 'magic', 'rare', 'unique', 'mythic', 'legend')이 각 상수에 키로 존재.

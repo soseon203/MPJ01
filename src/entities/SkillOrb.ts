@@ -26,6 +26,8 @@ export class SkillOrb extends Phaser.GameObjects.Container {
   private currentSize: number;
   private glowPulse = 0;
   private glowPulseTween: Phaser.Tweens.Tween | null = null;
+  public isFused = false;
+  public fusedColors: number[] = [];
 
   constructor(
     scene: Phaser.Scene,
@@ -91,8 +93,21 @@ export class SkillOrb extends Phaser.GameObjects.Container {
   /** Update orb size based on skill level */
   setLevel(level: number): void {
     this.skillLevel = level;
-    this.currentSize = Math.min(ORB_BASE_SIZE + level * 2, ORB_MAX_SIZE);
+    if (this.isFused) {
+      this.currentSize = Math.min((ORB_BASE_SIZE + level * 2) * 1.5, ORB_MAX_SIZE * 1.5);
+    } else {
+      this.currentSize = Math.min(ORB_BASE_SIZE + level * 2, ORB_MAX_SIZE);
+    }
     this._drawOrb();
+  }
+
+  /** Set fused visual with multiple colors and larger size */
+  setFusedVisual(colors: number[]): void {
+    this.isFused = true;
+    this.fusedColors = colors;
+    this.currentSize = Math.min((ORB_BASE_SIZE + this.skillLevel * 2) * 1.5, ORB_MAX_SIZE * 1.5);
+    this._drawOrb();
+    this._drawShadow();
   }
 
   // ===== Visual Drawing =====
@@ -100,7 +115,12 @@ export class SkillOrb extends Phaser.GameObjects.Container {
   /** Draw the main orb body with glow */
   private _drawOrb(): void {
     const size = this.currentSize;
-    const color = this.skillColor;
+    let color = this.skillColor;
+    // Fused orb: cycle through component colors as it orbits
+    if (this.isFused && this.fusedColors.length > 0) {
+      const idx = Math.abs(Math.floor((this.orbitAngle / (Math.PI * 2)) * this.fusedColors.length)) % this.fusedColors.length;
+      color = this.fusedColors[idx];
+    }
     const glowSize = size + 4 + this.glowPulse * 3;
 
     // Draw glow (larger, lower alpha, behind body)
@@ -135,6 +155,12 @@ export class SkillOrb extends Phaser.GameObjects.Container {
     // Outer edge ring
     this.bodyGraphics.lineStyle(1, 0xffffff, 0.3);
     this.bodyGraphics.strokeCircle(0, 0, size);
+
+    // Fusion glow ring
+    if (this.isFused) {
+      this.bodyGraphics.lineStyle(2, 0xffd700, 0.5 + this.glowPulse * 0.3);
+      this.bodyGraphics.strokeCircle(0, 0, size + 2);
+    }
   }
 
   /** Draw the shadow below the orb */

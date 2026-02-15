@@ -30,9 +30,9 @@ argument-hint: "[선택사항: 특정 스킬 이름 또는 집중할 영역]"
 
 | 스킬 | 설명 | 커버 파일 패턴 |
 |------|------|---------------|
-| `verify-type-sync` | TypeScript 유니온 타입과 데이터 객체/switch 케이스 간 동기화 검증 | `src/utils/types.ts`, `src/data/skillData.ts`, `src/data/enemyData.ts`, `src/data/synergyData.ts`, `src/utils/constants.ts`, `src/entities/Enemy.ts`, `src/systems/TowerCombatSystem.ts`, `src/systems/ShopSystem.ts` |
-| `verify-data-integrity` | 게임 데이터 파일의 구조적 무결성과 밸런스 규칙 준수 검증 | `src/data/skillData.ts`, `src/data/synergyData.ts`, `src/data/enemyData.ts`, `src/data/waveData.ts`, `src/utils/types.ts`, `src/utils/constants.ts` |
-| `verify-scene-events` | Phaser 씬 등록/전환과 GameEvent 이벤트 emit/on 매칭 검증 | `src/config/gameConfig.ts`, `src/scenes/*.ts`, `src/utils/types.ts`, `src/managers/EventManager.ts`, `src/entities/Enemy.ts`, `src/entities/Projectile.ts`, `src/systems/WaveSystem.ts`, `src/systems/EconomySystem.ts` |
+| `verify-type-sync` | TypeScript 유니온 타입과 데이터 객체/switch 케이스 간 동기화 검증 (RARITY_MAX_LEVEL 포함) | `src/utils/types.ts`, `src/data/skillData.ts`, `src/data/enemyData.ts`, `src/data/synergyData.ts`, `src/utils/constants.ts`, `src/entities/Enemy.ts`, `src/systems/TowerCombatSystem.ts`, `src/systems/ShopSystem.ts` |
+| `verify-data-integrity` | 게임 데이터 파일의 구조적 무결성, 밸런스 규칙, 진화 체인, 이펙트 키 유효성 검증 | `src/data/skillData.ts`, `src/data/synergyData.ts`, `src/data/enemyData.ts`, `src/data/waveData.ts`, `src/utils/types.ts`, `src/utils/constants.ts` |
+| `verify-scene-events` | Phaser 씬 등록/전환과 GameEvent 이벤트 emit/on 매칭 검증 | `src/config/gameConfig.ts`, `src/scenes/*.ts`, `src/utils/types.ts`, `src/managers/EventManager.ts`, `src/entities/Enemy.ts`, `src/entities/Projectile.ts`, `src/systems/WaveSystem.ts` |
 
 ## 워크플로우
 

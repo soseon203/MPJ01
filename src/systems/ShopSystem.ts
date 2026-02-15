@@ -6,18 +6,14 @@ import {
   SkillRarity,
   ShopCard,
   OwnedSkill,
-  getSkillUpgradeCost,
 } from '@/utils/types';
 import {
-  SHOP_UNLOCK_WAVES,
-  SHOP_UNLOCK_KILLS,
   SHOP_CARD_COUNT,
   SHOP_PROBABILITIES,
   LEVEL_SHOP_BONUS,
   INITIAL_SELECT_1,
-  INITIAL_SELECT_2,
 } from '@/utils/constants';
-import { SKILLS, SKILL_LIST, getSkillsByRarity } from '@/data/skillData';
+import { SKILLS, SKILL_LIST, getSkillsByRarity, SKILL_EVOLUTION, EVOLUTION_LEVEL } from '@/data/skillData';
 
 // 레어리티 순서 (확률 배열 인덱스 매핑)
 const RARITY_ORDER: SkillRarity[] = ['normal', 'magic', 'rare', 'unique', 'mythic', 'legend'];
@@ -44,7 +40,7 @@ function rollRarity(weights: number[]): SkillRarity {
  * w0, w10, w20, w30, w40 중 현재 웨이브 이하의 가장 큰 키 사용.
  */
 function getWaveBracketKey(currentWave: number): string {
-  const brackets = [40, 30, 20, 10, 0];
+  const brackets = [100, 70, 50, 30, 20, 10, 0];
   for (const b of brackets) {
     if (currentWave >= b) return `w${b}`;
   }
@@ -58,10 +54,23 @@ function getWaveBracketKey(currentWave: number): string {
  */
 function applyLevelBonus(baseWeights: number[], towerLevel: number): number[] {
   const weights = [...baseWeights];
-  const levelIndex = Math.min(towerLevel - 1, LEVEL_SHOP_BONUS.length - 1);
-  if (levelIndex < 0) return weights;
+  if (towerLevel <= 0) return weights;
 
-  const bonus = LEVEL_SHOP_BONUS[levelIndex];
+  let bonus: number[];
+  if (towerLevel <= LEVEL_SHOP_BONUS.length) {
+    bonus = LEVEL_SHOP_BONUS[towerLevel - 1];
+  } else {
+    // Level 11+: diminishing returns beyond table
+    const maxBonus = LEVEL_SHOP_BONUS[LEVEL_SHOP_BONUS.length - 1];
+    const extra = towerLevel - LEVEL_SHOP_BONUS.length;
+    const dimFactor = 1 - Math.exp(-extra * 0.1); // approaches 1 slowly
+    bonus = [
+      maxBonus[0] + 0.03 * dimFactor,  // rare cap ~+11%
+      maxBonus[1] + 0.02 * dimFactor,  // unique cap ~+8%
+      maxBonus[2] + 0.015 * dimFactor, // mythic cap ~+5.5%
+      maxBonus[3] + 0.01 * dimFactor,  // legend cap ~+3%
+    ];
+  }
   // bonus: [rare, unique, mythic, legend]
   const totalBonus = bonus[0] + bonus[1] + bonus[2] + bonus[3];
 
@@ -90,23 +99,6 @@ function applyLevelBonus(baseWeights: number[], towerLevel: number): number[] {
 export class ShopSystem {
 
   /**
-   * 상점이 열려야 하는지 확인합니다.
-   * - 마지막 상점 이후 SHOP_UNLOCK_WAVES 웨이브가 경과했거나
-   * - 마지막 상점 이후 SHOP_UNLOCK_KILLS 킬을 달성했을 때
-   */
-  shouldUnlockShop(
-    currentWave: number,
-    totalKills: number,
-    lastShopWave: number,
-    lastShopKills: number,
-  ): boolean {
-    const wavesSinceShop = currentWave - lastShopWave;
-    const killsSinceShop = totalKills - lastShopKills;
-
-    return wavesSinceShop >= SHOP_UNLOCK_WAVES || killsSinceShop >= SHOP_UNLOCK_KILLS;
-  }
-
-  /**
    * 상점에 표시할 카드를 생성합니다.
    * SHOP_CARD_COUNT(4)장의 랜덤 카드를 생성합니다.
    */
@@ -120,10 +112,47 @@ export class ShopSystem {
     const baseWeights = SHOP_PROBABILITIES[bracketKey] || SHOP_PROBABILITIES['w0'];
     const weights = applyLevelBonus(baseWeights, towerLevel);
 
+    // 진화 가능 스킬 수집 (레벨 5+ 보유 스킬의 진화 후보)
+    const evolutionPool: SkillId[] = [];
+    for (const owned of ownedSkills) {
+      if (owned.level >= EVOLUTION_LEVEL && !owned.fusedFrom) {
+        const candidates = SKILL_EVOLUTION[owned.id];
+        if (candidates) {
+          for (const evoId of candidates) {
+            // 이미 보유 중이면 제외
+            if (!ownedSkills.find(s => s.id === evoId)) {
+              evolutionPool.push(evoId);
+            }
+          }
+        }
+      }
+    }
+
     const cards: ShopCard[] = [];
     const usedSkillIds = new Set<SkillId>();
 
     for (let i = 0; i < SHOP_CARD_COUNT; i++) {
+      // 진화 카드가 풀에 있으면 일정 확률(40%)로 진화 카드 생성
+      if (evolutionPool.length > 0 && Math.random() < 0.4) {
+        const evoIdx = Math.floor(Math.random() * evolutionPool.length);
+        const evoId = evolutionPool[evoIdx];
+        if (!usedSkillIds.has(evoId)) {
+          const evoSkill = SKILLS[evoId];
+          if (evoSkill) {
+            cards.push({
+              skillId: evoId,
+              isUpgrade: false,
+              currentLevel: 0,
+              rarity: evoSkill.rarity,
+              isEvolution: true,
+            });
+            usedSkillIds.add(evoId);
+            evolutionPool.splice(evoIdx, 1);
+            continue;
+          }
+        }
+      }
+
       const card = this.generateSingleCard(weights, ownedSkills, usedSkillIds);
       if (card) {
         cards.push(card);
@@ -136,16 +165,59 @@ export class ShopSystem {
 
   /**
    * 초기 선택 카드를 생성합니다.
-   * 라운드 1: INITIAL_SELECT_1 확률, 라운드 2: INITIAL_SELECT_2 확률
-   * Normal/Magic/Rare만 등장하며, 중복 없이 4장 생성
+   * Normal/Magic/Rare만 등장하며, 중복 없이 4장 생성 → 전부 획득
    */
-  generateInitialCards(round: 1 | 2): ShopCard[] {
-    const weights = round === 1 ? [...INITIAL_SELECT_1] : [...INITIAL_SELECT_2];
+  generateInitialCards(): ShopCard[] {
+    const weights = [...INITIAL_SELECT_1];
     const cards: ShopCard[] = [];
     const usedSkillIds = new Set<SkillId>();
 
     for (let i = 0; i < SHOP_CARD_COUNT; i++) {
       const card = this.generateSingleCard(weights, [], usedSkillIds);
+      if (card) {
+        cards.push(card);
+        usedSkillIds.add(card.skillId);
+      }
+    }
+
+    return cards;
+  }
+
+  /** 초기 선택 시 단일 카드를 새로고침합니다. */
+  rerollInitialCard(excludeSkillIds: Set<SkillId>): ShopCard | null {
+    const weights = [...INITIAL_SELECT_1];
+    return this.generateSingleCard(weights, [], excludeSkillIds);
+  }
+
+  /** 레벨업 상점에서 단일 카드를 새로고침합니다. */
+  rerollShopCard(
+    currentWave: number,
+    towerLevel: number,
+    ownedSkills: OwnedSkill[],
+    excludeSkillIds: Set<SkillId>,
+  ): ShopCard | null {
+    const bracketKey = getWaveBracketKey(currentWave);
+    const baseWeights = SHOP_PROBABILITIES[bracketKey] || SHOP_PROBABILITIES['w0'];
+    const weights = applyLevelBonus(baseWeights, towerLevel);
+    return this.generateSingleCard(weights, ownedSkills, excludeSkillIds);
+  }
+
+  /**
+   * 보스 처치 보상 카드를 생성합니다.
+   * rare 이상 레어리티만 등장, 3장 생성
+   */
+  generateBossCards(
+    currentWave: number,
+    towerLevel: number,
+    ownedSkills: OwnedSkill[],
+  ): ShopCard[] {
+    // rare+ only weights: [normal=0, magic=0, rare, unique, mythic, legend]
+    const weights = [0, 0, 0.30, 0.35, 0.25, 0.10];
+    const cards: ShopCard[] = [];
+    const usedSkillIds = new Set<SkillId>();
+
+    for (let i = 0; i < 3; i++) {
+      const card = this.generateSingleCard(weights, ownedSkills, usedSkillIds);
       if (card) {
         cards.push(card);
         usedSkillIds.add(card.skillId);
@@ -190,7 +262,6 @@ export class ShopSystem {
         // 업그레이드 카드
         return {
           skillId: skillData.id,
-          cost: getSkillUpgradeCost(skillData.baseCost, owned.level),
           isUpgrade: true,
           currentLevel: owned.level,
           rarity: skillData.rarity,
@@ -200,7 +271,6 @@ export class ShopSystem {
       // 신규 스킬 카드
       return {
         skillId: skillData.id,
-        cost: skillData.baseCost,
         isUpgrade: false,
         currentLevel: 0,
         rarity: skillData.rarity,

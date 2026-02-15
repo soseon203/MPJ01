@@ -46,10 +46,10 @@ export class WaveSystem {
     }
     this.enemiesRemaining += totalEnemies;
 
-    // Set up spawn timers for each group
+    // Set up spawn timers for each group (delays are in ms, convert to seconds)
     for (const group of waveConfig.groups) {
       if (group.delay > 0) {
-        this.delayTimers.push({ group, delay: group.delay });
+        this.delayTimers.push({ group, delay: group.delay / 1000 });
       } else {
         this.addSpawnTimer(group);
       }
@@ -138,12 +138,13 @@ export class WaveSystem {
   // ---- Private ----
 
   private addSpawnTimer(group: WaveEnemyGroup): void {
+    const intervalSec = group.interval / 1000; // convert ms to seconds
     this.spawnTimers.push({
       type: group.type,
-      interval: group.interval,
+      interval: intervalSec,
       count: group.count,
       spawned: 0,
-      elapsed: group.interval, // spawn first enemy immediately
+      elapsed: intervalSec, // spawn first enemy immediately
       hpMultiplier: group.hpMultiplier,
       speedMultiplier: group.speedMultiplier,
     });

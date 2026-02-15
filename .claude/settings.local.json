@@ -8,10 +8,13 @@
       "WebFetch(domain:www.redblobgames.com)",
       "WebFetch(domain:raw.githubusercontent.com)",
       "Bash(npx vite:*)",
-      "Bash(git config:*)"
+      "Bash(git config:*)",
+      "Read(//f//**)",
+      "Bash(python3:*)"
     ],
     "additionalDirectories": [
-      "f:\\MoneyPJ\\01\\First\\.claude\\skills"
+      "f:\\MoneyPJ\\01\\First\\.claude\\skills",
+      "f:\\my-video\\src\\GameVFX"
     ]
   }
 }

@@ -30,8 +30,8 @@ argument-hint: "[선택사항: 특정 verify 스킬 이름]"
 | # | 스킬 | 설명 |
 |---|------|------|
 | 1 | `verify-type-sync` | TypeScript 유니온 타입(SkillId, EnemyId, SkillRarity, SkillTag, ElementTag, TargetingStrategy)과 데이터 객체/switch 케이스 간 동기화 검증 |
-| 2 | `verify-data-integrity` | 게임 데이터 파일(64개 스킬, 45개 시너지, 5종 적, 상점 확률, 레벨 테이블)의 구조적 무결성과 밸런스 규칙 검증 |
-| 3 | `verify-scene-events` | Phaser 5개 씬 등록/전환과 GameEvent 23개 이벤트 emit/on 매칭 검증 |
+| 2 | `verify-data-integrity` | 게임 데이터 파일(60개 스킬, 41개 시너지, 5종 적, 상점 확률, 레벨 테이블, 진화 체인, 이펙트 키)의 구조적 무결성과 밸런스 규칙 검증 |
+| 3 | `verify-scene-events` | Phaser 5개 씬 등록/전환과 GameEvent 21개 이벤트 emit/on 매칭 검증 |
 
 ## 워크플로우
 

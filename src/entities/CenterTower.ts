@@ -8,7 +8,6 @@ import {
   MAX_SKILL_SLOTS,
 } from '../utils/types';
 import {
-  TOWER_MAX_LEVEL,
   TOWER_LEVEL_STATS,
   EXP_TABLE,
   COLORS,
@@ -21,8 +20,6 @@ import {
  */
 export class CenterTower extends Phaser.GameObjects.Container {
   public towerState: TowerState;
-  public fireCooldown: number = 0;
-
   private baseGraphics: Phaser.GameObjects.Graphics;
   private glowGraphics: Phaser.GameObjects.Graphics;
   private rangeGraphics: Phaser.GameObjects.Graphics;
@@ -95,35 +92,40 @@ export class CenterTower extends Phaser.GameObjects.Container {
 
   // ===== EXP & Leveling =====
 
-  /** Add EXP, return true if leveled up */
+  /** Add EXP, return true if leveled up (infinite leveling) */
   addExp(amount: number): boolean {
-    if (this.towerState.level >= TOWER_MAX_LEVEL) return false;
-
     this.towerState.exp += amount;
     let leveled = false;
 
-    while (
-      this.towerState.exp >= this.towerState.expToNext &&
-      this.towerState.level < TOWER_MAX_LEVEL
-    ) {
+    while (this.towerState.exp >= this.towerState.expToNext && this.towerState.expToNext > 0) {
       this.towerState.exp -= this.towerState.expToNext;
       this.towerState.level++;
       leveled = true;
 
-      // Update base stats from level table
-      const statsIndex = Math.min(this.towerState.level - 1, TOWER_LEVEL_STATS.length - 1);
-      const newStats = TOWER_LEVEL_STATS[statsIndex];
-      this.towerState.baseDamage = newStats.damage;
-      this.towerState.baseFireRate = newStats.fireRate;
-      this.towerState.baseRange = newStats.range;
+      // Update base stats
+      if (this.towerState.level <= TOWER_LEVEL_STATS.length) {
+        // Use table for levels 1~10
+        const newStats = TOWER_LEVEL_STATS[this.towerState.level - 1];
+        this.towerState.baseDamage = newStats.damage;
+        this.towerState.baseFireRate = newStats.fireRate;
+        this.towerState.baseRange = newStats.range;
+      } else {
+        // Level 11+: scale beyond table with formula
+        const extra = this.towerState.level - TOWER_LEVEL_STATS.length;
+        const maxStats = TOWER_LEVEL_STATS[TOWER_LEVEL_STATS.length - 1];
+        this.towerState.baseDamage = maxStats.damage + extra * 5;
+        this.towerState.baseFireRate = maxStats.fireRate + extra * 0.2;
+        this.towerState.baseRange = Math.min(400, maxStats.range + extra * 5);
+      }
 
       // Calculate next EXP requirement
-      if (this.towerState.level < TOWER_MAX_LEVEL) {
+      if (this.towerState.level < EXP_TABLE.length) {
         this.towerState.expToNext = EXP_TABLE[this.towerState.level];
       } else {
-        // Max level - no more exp needed
-        this.towerState.exp = 0;
-        this.towerState.expToNext = 0;
+        // Beyond table: exponential growth
+        const lastExp = EXP_TABLE[EXP_TABLE.length - 1];
+        const beyond = this.towerState.level - EXP_TABLE.length + 1;
+        this.towerState.expToNext = Math.floor(lastExp * Math.pow(1.15, beyond));
       }
 
       // Emit level up event
@@ -179,6 +181,32 @@ export class CenterTower extends Phaser.GameObjects.Container {
     return this.towerState.skills.filter(s => s.id !== 'power_shot').length;
   }
 
+  /** Fuse multiple skills into one fused skill */
+  fuseSkills(primaryId: SkillId, consumedIds: SkillId[], bonus: number): OwnedSkill | null {
+    const allIds = [primaryId, ...consumedIds];
+    let maxLevel = 0;
+
+    for (const id of allIds) {
+      const owned = this.towerState.skills.find(s => s.id === id);
+      if (!owned) return null;
+      maxLevel = Math.max(maxLevel, owned.level);
+    }
+
+    for (const id of allIds) {
+      this.removeSkill(id);
+    }
+
+    const fusedSkill: OwnedSkill = {
+      id: primaryId,
+      level: maxLevel,
+      fusedFrom: allIds,
+      fusionBonus: bonus,
+    };
+
+    this.towerState.skills.push(fusedSkill);
+    return fusedSkill;
+  }
+
   // ===== Targeting =====
 
   setTargeting(strategy: TargetingStrategy): void {
@@ -204,8 +232,8 @@ export class CenterTower extends Phaser.GameObjects.Container {
     this._drawRange();
     this.levelText.setText(`${this.towerState.level}`);
 
-    // Level 10 rainbow shimmer
-    if (this.towerState.level >= TOWER_MAX_LEVEL && !this.rainbowTween) {
+    // Rainbow shimmer at level 10+
+    if (this.towerState.level >= 10 && !this.rainbowTween) {
       this.rainbowTween = this.scene.tweens.add({
         targets: this,
         rainbowHue: { from: 0, to: 360 },
@@ -225,8 +253,8 @@ export class CenterTower extends Phaser.GameObjects.Container {
 
     // Determine color
     let baseColor = COLORS.TOWER_BASE;
-    if (level >= TOWER_MAX_LEVEL) {
-      // Rainbow shimmer at max level
+    if (level >= 10) {
+      // Rainbow shimmer at level 10+
       baseColor = Phaser.Display.Color.HSLToColor(this.rainbowHue / 360, 0.8, 0.6).color;
     }
 
@@ -280,7 +308,7 @@ export class CenterTower extends Phaser.GameObjects.Container {
     const brightness = 0.3 + level * 0.07; // Brighter at higher levels
 
     let glowColor = COLORS.TOWER_GLOW;
-    if (level >= TOWER_MAX_LEVEL) {
+    if (level >= 10) {
       glowColor = Phaser.Display.Color.HSLToColor(this.rainbowHue / 360, 0.9, 0.8).color;
     }
 
@@ -321,10 +349,6 @@ export class CenterTower extends Phaser.GameObjects.Container {
     // to apply the changing glowAlpha
     this._drawGlow();
 
-    // Update fire cooldown
-    if (this.fireCooldown > 0) {
-      this.fireCooldown -= delta;
-    }
   }
 
   destroy(fromScene?: boolean): void {

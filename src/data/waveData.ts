@@ -2,42 +2,51 @@
 // 라스트타워 - 웨이브 생성 (무한 웨이브)
 // ============================================================
 import { EnemyId, WaveConfig, WaveEnemyGroup } from '@/utils/types';
+import { ENEMIES_PER_WAVE } from '@/utils/constants';
 
 /**
  * 무한 웨이브를 생성합니다.
  *
  * 규칙:
- * - Wave  1~5 : normal만
- * - Wave  6~10: normal + fast
- * - Wave 11~15: normal + fast + tiny
- * - Wave 16+  : normal + fast + tiny + tank
+ * - Wave  1~2 : normal만
+ * - Wave  3~4 : normal + fast
+ * - Wave  5~7 : normal + fast + tiny
+ * - Wave  8+  : normal + fast + tiny + tank
  * - 10의 배수 웨이브: 보스 웨이브 (보스 1 + 추가 잡몹)
  *
  * 스케일링:
  * - HP 배율: 1 + (wave-1) * 0.15
  * - 속도 배율: 1 + (wave-1) * 0.02
- * - 적 수: Math.floor(3 + wave * 0.8)
+ * - 적 수: ENEMIES_PER_WAVE (50)
  * - 보스 HP 배율: 1 + (wave-1) * 0.3
- * - 스폰 간격: Math.max(400, 1500 - wave * 20) ms
+ * - 스폰 간격: 30초 안에 모두 스폰 (30000 / enemyCount ms)
  */
 export function generateWave(waveNumber: number): WaveConfig {
   const isBossWave = waveNumber % 10 === 0;
-  const hpMultiplier = 1 + (waveNumber - 1) * 0.15;
-  const speedMultiplier = 1 + (waveNumber - 1) * 0.02;
-  const bossHpMultiplier = 1 + (waveNumber - 1) * 0.3;
-  const enemyCount = Math.floor(3 + waveNumber * 0.8);
-  const spawnInterval = Math.max(400, 1500 - waveNumber * 20);
+  // HP 스케일링: 웨이브 1~5는 완만, 6부터 급격히 상승
+  // 초기 4스킬로 5웨이브까지 클리어 가능, 이후 전략적 구매 필수
+  const earlyScale = Math.pow(1.12, waveNumber - 1);
+  const lateBoost = waveNumber > 5 ? Math.pow(1.15, waveNumber - 5) : 1;
+  const hpMultiplier = earlyScale * lateBoost;
+  // w1=1.0, w3=1.25, w5=1.57, w7=2.60, w10=5.6, w15=19.8
+
+  const speedMultiplier = 1 + (waveNumber - 1) * 0.03 + Math.max(0, waveNumber - 5) * 0.02;
+  const bossHpMultiplier = earlyScale * (waveNumber > 5 ? Math.pow(1.20, waveNumber - 5) : 1);
+
+  // 적 수: 매 웨이브 100마리 고정
+  const enemyCount = 100;
+  const spawnInterval = Math.max(80, Math.floor(15000 / enemyCount));
 
   // 사용 가능한 적 타입 결정
   const availableTypes: EnemyId[] = ['normal'];
 
-  if (waveNumber >= 6) {
+  if (waveNumber >= 3) {
     availableTypes.push('fast');
   }
-  if (waveNumber >= 11) {
+  if (waveNumber >= 5) {
     availableTypes.push('tiny');
   }
-  if (waveNumber >= 16) {
+  if (waveNumber >= 8) {
     availableTypes.push('tank');
   }
 

@@ -2,6 +2,8 @@
 // 라스트타워 - 상수 정의
 // ============================================================
 
+import type { LayoutMode, GameLayout } from './types';
+
 // ---- Screen ----
 export const GAME_WIDTH = 1280;
 export const GAME_HEIGHT = 720;
@@ -15,31 +17,32 @@ export const TOWER_MAX_LEVEL = 10;
 export const PATH_MARGIN = 180;
 
 // ---- Game Rules ----
-export const MAX_ENEMIES_ON_SCREEN = 50;
-export const STARTING_GOLD = 0;
+export const MAX_ENEMIES_ON_SCREEN = 100;
+export const WAVE_TIME_LIMIT = 30; // 30초 후 다음 웨이브 강제 시작
+export const ENEMIES_PER_WAVE = 50; // 웨이브당 기본 적 수 (웨이브에 따라 증가)
 
 // ---- EXP Table ----
 export const EXP_TABLE: number[] = [
-  0, 200, 500, 1000, 1800, 3000, 5000, 8000, 13000, 20000,
+  0, 28, 70, 126, 210, 322, 476, 672, 945, 1295,
 ];
 
 // ---- Tower Level Stats ----
 export const TOWER_LEVEL_STATS = [
-  { damage: 10, fireRate: 1.0, range: 150 },
-  { damage: 14, fireRate: 1.1, range: 158 },
-  { damage: 18, fireRate: 1.2, range: 166 },
-  { damage: 23, fireRate: 1.3, range: 174 },
-  { damage: 28, fireRate: 1.4, range: 182 },
-  { damage: 34, fireRate: 1.5, range: 190 },
-  { damage: 40, fireRate: 1.6, range: 198 },
-  { damage: 47, fireRate: 1.8, range: 206 },
-  { damage: 55, fireRate: 2.0, range: 214 },
-  { damage: 65, fireRate: 2.2, range: 225 },
+  { damage: 12, fireRate: 2.0, range: 190 },
+  { damage: 16, fireRate: 2.3, range: 198 },
+  { damage: 21, fireRate: 2.6, range: 206 },
+  { damage: 23, fireRate: 2.9, range: 210 },
+  { damage: 28, fireRate: 3.2, range: 212 },
+  { damage: 34, fireRate: 3.5, range: 220 },
+  { damage: 40, fireRate: 3.8, range: 228 },
+  { damage: 47, fireRate: 4.2, range: 236 },
+  { damage: 55, fireRate: 4.6, range: 244 },
+  { damage: 65, fireRate: 5.0, range: 255 },
 ];
 
 // ---- Skill Costs ----
 export const SKILL_COSTS: Record<string, number> = {
-  normal: 20, magic: 60, rare: 150, unique: 400, mythic: 750, legend: 1000,
+  normal: 50, magic: 130, rare: 350, unique: 800, mythic: 1800, legend: 4000,
 };
 
 // ---- Rarity Colors ----
@@ -55,25 +58,28 @@ export const RARITY_COLOR_STRINGS: Record<string, string> = {
 
 // ---- Shop Probabilities [normal, magic, rare, unique, mythic, legend] ----
 export const SHOP_PROBABILITIES: Record<string, number[]> = {
-  'w0':  [0.40, 0.35, 0.18, 0.06, 0.01, 0.00],
-  'w10': [0.40, 0.35, 0.18, 0.06, 0.01, 0.00],
-  'w20': [0.25, 0.35, 0.25, 0.12, 0.025, 0.005],
-  'w30': [0.15, 0.28, 0.30, 0.18, 0.07, 0.02],
-  'w40': [0.08, 0.20, 0.30, 0.22, 0.14, 0.06],
+  'w0':  [0.50, 0.35, 0.12, 0.03, 0.00, 0.00],
+  'w10': [0.42, 0.35, 0.16, 0.06, 0.01, 0.00],
+  'w20': [0.32, 0.33, 0.22, 0.10, 0.025, 0.005],
+  'w30': [0.24, 0.30, 0.26, 0.14, 0.05, 0.01],
+  'w50': [0.16, 0.26, 0.28, 0.18, 0.09, 0.03],
+  'w70': [0.10, 0.22, 0.28, 0.22, 0.13, 0.05],
+  'w100': [0.05, 0.15, 0.26, 0.26, 0.18, 0.10],
 };
 
 // Tower level bonus [rare, unique, mythic, legend]
+// Levels 1-10 use table, 11+ use formula (diminishing returns)
 export const LEVEL_SHOP_BONUS: number[][] = [
-  [0, 0, 0, 0],
-  [0, 0, 0, 0],
-  [0, 0, 0, 0],
-  [0.02, 0.01, 0, 0],
-  [0.04, 0.02, 0.01, 0],
-  [0.05, 0.04, 0.02, 0],
-  [0.06, 0.05, 0.03, 0.01],
-  [0.07, 0.07, 0.05, 0.02],
-  [0.08, 0.09, 0.07, 0.03],
-  [0.10, 0.12, 0.10, 0.05],
+  [0, 0, 0, 0],       // Lv1
+  [0, 0, 0, 0],       // Lv2
+  [0.01, 0.005, 0, 0],  // Lv3
+  [0.02, 0.01, 0, 0],   // Lv4
+  [0.03, 0.015, 0.005, 0], // Lv5
+  [0.04, 0.02, 0.01, 0],   // Lv6
+  [0.05, 0.03, 0.015, 0.005], // Lv7
+  [0.06, 0.04, 0.02, 0.01],   // Lv8
+  [0.07, 0.05, 0.03, 0.015],  // Lv9
+  [0.08, 0.06, 0.04, 0.02],   // Lv10
 ];
 
 // Initial selection (Normal~Rare only)
@@ -125,3 +131,47 @@ export const COLORS = {
 };
 
 export const FONT_FAMILY = 'monospace';
+
+// ---- Layout Computation ----
+export function computeGameLayout(mode: LayoutMode): GameLayout {
+  if (mode === 'portrait') {
+    const gw = PORTRAIT_WIDTH;
+    const gh = PORTRAIT_HEIGHT;
+    const gameAreaW = gw;
+    const gameAreaH = gw; // square game area at top
+    const towerX = gameAreaW / 2;
+    const towerY = gameAreaH / 2;
+    return {
+      mode: 'portrait',
+      gameWidth: gw, gameHeight: gh,
+      gameAreaWidth: gameAreaW, gameAreaHeight: gameAreaH,
+      uiPanelX: 0, uiPanelY: gameAreaH,
+      uiPanelWidth: gw, uiPanelHeight: gh - gameAreaH,
+      towerX, towerY,
+      pathMargin: PATH_MARGIN,
+      pathRect: {
+        x1: towerX - PATH_MARGIN, y1: towerY - PATH_MARGIN,
+        x2: towerX + PATH_MARGIN, y2: towerY + PATH_MARGIN,
+      },
+    };
+  }
+  // Landscape — identical to existing hardcoded values
+  const gw = GAME_WIDTH;
+  const gh = GAME_HEIGHT;
+  const gameAreaW = gw - UI_PANEL_WIDTH;
+  const towerX = gameAreaW / 2;
+  const towerY = gh / 2;
+  return {
+    mode: 'landscape',
+    gameWidth: gw, gameHeight: gh,
+    gameAreaWidth: gameAreaW, gameAreaHeight: gh,
+    uiPanelX: gameAreaW, uiPanelY: 0,
+    uiPanelWidth: UI_PANEL_WIDTH, uiPanelHeight: gh,
+    towerX, towerY,
+    pathMargin: PATH_MARGIN,
+    pathRect: {
+      x1: towerX - PATH_MARGIN, y1: towerY - PATH_MARGIN,
+      x2: towerX + PATH_MARGIN, y2: towerY + PATH_MARGIN,
+    },
+  };
+}

@@ -4,26 +4,26 @@
 
 // ---- Skill System ----
 export type SkillId =
-  // Normal (12)
+  // Normal (11)
   | 'rapid_fire' | 'power_shot' | 'long_range' | 'sharp_bullet'
-  | 'tough_skin' | 'exp_boost' | 'gold_drop' | 'focus_aim'
+  | 'tough_skin' | 'exp_boost' | 'focus_aim'
   | 'quick_reload' | 'iron_wall' | 'scavenger' | 'steady_hand'
-  // Magic (14)
+  // Magic (12)
   | 'burn_shot' | 'ember_blast' | 'frost_shot' | 'chill_aura'
-  | 'shock_shot' | 'static_charge' | 'poison_shot' | 'thorn_shot'
-  | 'shadow_bolt' | 'life_drain' | 'splash_shot' | 'critical_strike'
+  | 'shock_shot' | 'poison_shot' | 'thorn_shot'
+  | 'shadow_bolt' | 'splash_shot' | 'critical_strike'
   | 'bleed_shot' | 'wind_shot'
-  // Rare (12)
-  | 'chain_lightning' | 'pierce_shot' | 'multi_shot' | 'homing_missile'
+  // Rare (13)
+  | 'chain_lightning' | 'pierce_shot' | 'multi_shot' | 'homing_missile' | 'static_charge'
   | 'frozen_field' | 'poison_cloud' | 'fire_trail' | 'shadow_strike'
   | 'thunder_storm' | 'vine_trap' | 'ricochet' | 'blizzard'
-  // Unique (10)
-  | 'execute' | 'gold_fever' | 'soul_harvest' | 'mirror_orb'
+  // Unique (9)
+  | 'execute' | 'soul_harvest' | 'mirror_orb'
   | 'overcharge' | 'berserker' | 'ice_age' | 'plague_bearer'
   | 'inferno_core' | 'void_rift'
-  // Mythic (8)
+  // Mythic (7)
   | 'elemental_fusion' | 'death_mark' | 'chain_reaction' | 'eternal_winter'
-  | 'gold_mint' | 'phantom_army' | 'wildfire' | 'toxic_evolution'
+  | 'phantom_army' | 'wildfire' | 'toxic_evolution'
   // Legend (8)
   | 'apocalypse' | 'time_warp' | 'black_hole' | 'infinity_chain'
   | 'dragon_breath' | 'world_tree' | 'absolute_zero' | 'storm_lord';
@@ -58,6 +58,8 @@ export interface SkillData {
 export interface OwnedSkill {
   id: SkillId;
   level: number;
+  fusedFrom?: SkillId[];  // 합성 원료 스킬 ID 목록
+  fusionBonus?: number;   // 합성 보너스 배율 (1.5 or 2.0)
 }
 
 // ---- Tower ----
@@ -83,7 +85,6 @@ export interface EnemyData {
   name: string;
   baseHp: number;
   speed: number;
-  goldReward: number;
   expReward: number;
   color: number;
   size: number;
@@ -98,7 +99,6 @@ export interface EnemyState {
   speed: number;
   baseSpeed: number;
   armor: number;
-  goldReward: number;
   expReward: number;
   pathProgress: number;
   laps: number;
@@ -125,16 +125,10 @@ export interface EnemyState {
 // ---- Shop ----
 export interface ShopCard {
   skillId: SkillId;
-  cost: number;
   isUpgrade: boolean;
   currentLevel: number;
   rarity: SkillRarity;
-}
-
-export interface ExpPurchaseOption {
-  exp: number;
-  cost: number;
-  label: string;
+  isEvolution?: boolean;  // 진화 카드 여부
 }
 
 // ---- Synergy ----
@@ -156,6 +150,7 @@ export interface ActiveSynergy {
   name: string;
   description: string;
   tier: 'basic' | 'element' | 'advanced';
+  requirements: TagRequirement[];
 }
 
 // ---- Wave ----
@@ -172,11 +167,6 @@ export interface WaveConfig {
   waveNumber: number;
   groups: WaveEnemyGroup[];
   isBossWave: boolean;
-}
-
-// ---- Economy ----
-export interface EconomyState {
-  gold: number;
 }
 
 // ---- Layout ----
@@ -207,7 +197,7 @@ export enum GameEvent {
   PROJECTILE_HIT = 'projectile_hit',
   WAVE_START = 'wave_start',
   WAVE_COMPLETE = 'wave_complete',
-  GOLD_CHANGED = 'gold_changed',
+
   EXP_GAINED = 'exp_gained',
   LEVEL_UP = 'level_up',
   SKILL_PURCHASED = 'skill_purchased',
@@ -216,7 +206,6 @@ export enum GameEvent {
   SKILL_REMOVED = 'skill_removed',
   SYNERGY_ACTIVATED = 'synergy_activated',
   SYNERGY_DEACTIVATED = 'synergy_deactivated',
-  SHOP_AVAILABLE = 'shop_available',
   SHOP_OPENED = 'shop_opened',
   SHOP_CLOSED = 'shop_closed',
   TARGETING_CHANGED = 'targeting_changed',
@@ -230,11 +219,6 @@ export function getSkillEffect(skill: SkillData, level: number, key: string): nu
   const def = skill.effects[key];
   if (!def) return 0;
   return def.base + def.perLevel * (level - 1);
-}
-
-export function getSkillUpgradeCost(baseCost: number, currentLevel: number): number {
-  if (currentLevel === 0) return baseCost;
-  return Math.floor(baseCost * (1 + currentLevel * 0.5));
 }
 
 export const MAX_SKILL_SLOTS = 8;

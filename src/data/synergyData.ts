@@ -1,5 +1,5 @@
 // ============================================================
-// 라스트타워 - 시너지 데이터 (45 synergies)
+// 라스트타워 - 시너지 데이터 (41 synergies)
 // ============================================================
 
 import type { SynergyData } from '@/utils/types';
@@ -160,23 +160,6 @@ export const SYNERGIES: SynergyData[] = [
     tier: 'basic',
   },
   {
-    id: 'tycoon',
-    name: '재벌',
-    description: '상점 카드 +1, 가격 -15%',
-    requirements: [{ tag: 'ECONOMY', count: 2 }],
-    tier: 'basic',
-  },
-  {
-    id: 'jackpot',
-    name: '잭팟',
-    description: '크리티컬 처치 시 골드 3배',
-    requirements: [
-      { tag: 'ECONOMY', count: 1 },
-      { tag: 'CRIT', count: 1 },
-    ],
-    tier: 'basic',
-  },
-  {
     id: 'proliferation',
     name: '증식',
     description: '복제 오브 효과 증폭',
@@ -227,16 +210,6 @@ export const SYNERGIES: SynergyData[] = [
     requirements: [{ tag: 'PROJECTILE', count: 3 }],
     tier: 'basic',
   },
-  {
-    id: 'fortress_economy',
-    name: '요새 경제',
-    description: '적 한도 여유분에 비례하여 골드 보너스',
-    requirements: [
-      { tag: 'DEFENSE', count: 1 },
-      { tag: 'ECONOMY', count: 1 },
-    ],
-    tier: 'basic',
-  },
 
   // ============================================================
   // Element Synergies (5, tier='element')
@@ -272,7 +245,7 @@ export const SYNERGIES: SynergyData[] = [
   {
     id: 'abyss',
     name: '심연',
-    description: '처치 시 5% 확률로 다음 처치 골드 10배',
+    description: '처치 시 5% 확률로 다음 공격 데미지 10배',
     requirements: [{ tag: 'DARK', count: 2 }],
     tier: 'element',
   },
@@ -310,17 +283,6 @@ export const SYNERGIES: SynergyData[] = [
       { tag: 'CHAIN', count: 1 },
       { tag: 'AOE', count: 1 },
       { tag: 'DOT', count: 1 },
-    ],
-    tier: 'advanced',
-  },
-  {
-    id: 'bounty_hunter',
-    name: '현상금 사냥꾼',
-    description: '보스 처치 시 골드 5배',
-    requirements: [
-      { tag: 'ECONOMY', count: 1 },
-      { tag: 'CRIT', count: 1 },
-      { tag: 'SINGLE', count: 1 },
     ],
     tier: 'advanced',
   },
@@ -432,7 +394,7 @@ export const SYNERGIES: SynergyData[] = [
     id: 'transcendence',
     name: '초월',
     description: '모든 보너스 배율 +50%',
-    requirements: [{ tag: 'SCALE', count: 2 }],
+    requirements: [{ tag: 'SCALE', count: 3 }],
     tier: 'advanced',
   },
 ];

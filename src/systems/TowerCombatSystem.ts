@@ -37,7 +37,6 @@ export interface ComputedTowerStats {
   knockback: number;
   // Special
   executeThreshold: number;
-  goldBonusPercent: number;
   expBonusPercent: number;
   maxEnemiesBonus: number;
   // Active orb skill ids
@@ -107,7 +106,6 @@ export class TowerCombatSystem {
 
     // Special
     let executeThreshold = 0;
-    let goldBonusPercent = 0;
     let expBonusPercent = 0;
     let maxEnemiesBonus = 0;
 
@@ -117,6 +115,44 @@ export class TowerCombatSystem {
     for (const owned of activeSkills) {
       const data = skillDataMap[owned.id];
       if (!data) continue;
+
+      // Handle fused skills: active orb + passive bonuses from source skills
+      if (owned.fusedFrom) {
+        activeOrbSkills.push(owned.id);
+        const fBonus = owned.fusionBonus || 1;
+        for (const srcId of owned.fusedFrom) {
+          const srcData = skillDataMap[srcId];
+          if (!srcData || !srcData.passive) continue;
+          const lvl = owned.level;
+          const eff = (key: string) => getSkillEffect(srcData, lvl, key) * fBonus;
+          flatDamage += eff('flatDamage');
+          damagePercent += eff('damagePercent');
+          flatFireRate += eff('flatFireRate');
+          fireRatePercent += eff('fireRatePercent');
+          flatRange += eff('flatRange');
+          rangePercent += eff('rangePercent');
+          critChance += eff('critChance');
+          critDamage += eff('critDamage');
+          multiShot += eff('multiShot');
+          splashRadius += eff('splashRadius');
+          chainCount += eff('chainCount');
+          if (eff('chainDamageRatio') > 0) chainDamageRatio = eff('chainDamageRatio');
+          pierceCount += eff('pierceCount');
+          fireDps += eff('fireDps');
+          poisonDps += eff('poisonDps');
+          bleedDps += eff('bleedDps');
+          dotDuration += eff('dotDuration');
+          slowPercent += eff('slowPercent');
+          slowDuration += eff('slowDuration');
+          stunDuration += eff('stunDuration');
+          knockback += eff('knockback');
+          executeThreshold += eff('executeThreshold');
+
+          expBonusPercent += eff('expBonusPercent');
+          maxEnemiesBonus += eff('maxEnemiesBonus');
+        }
+        continue;
+      }
 
       if (!data.passive) {
         // Active orb skill
@@ -167,20 +203,20 @@ export class TowerCombatSystem {
 
       // Special
       executeThreshold += eff('executeThreshold');
-      goldBonusPercent += eff('goldBonusPercent');
+
       expBonusPercent += eff('expBonusPercent');
       maxEnemiesBonus += eff('maxEnemiesBonus');
     }
 
     // Compute final values: base + flat, then multiply by percent bonus
     const damage = Math.max(1, Math.round(
-      (base.damage + flatDamage) * (1 + damagePercent / 100),
+      (base.damage + flatDamage) * (1 + damagePercent),
     ));
     const fireRate = Math.max(0.1,
-      (base.fireRate + flatFireRate) * (1 + fireRatePercent / 100),
+      (base.fireRate + flatFireRate) * (1 + fireRatePercent),
     );
     const range = Math.max(50,
-      (base.range + flatRange) * (1 + rangePercent / 100),
+      (base.range + flatRange) * (1 + rangePercent),
     );
 
     return {
@@ -203,7 +239,6 @@ export class TowerCombatSystem {
       stunDuration,
       knockback,
       executeThreshold: Math.min(executeThreshold, 0.5), // cap at 50%
-      goldBonusPercent,
       expBonusPercent,
       maxEnemiesBonus: Math.floor(maxEnemiesBonus),
       activeOrbSkills,

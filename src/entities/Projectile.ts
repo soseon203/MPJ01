@@ -20,6 +20,7 @@ export interface ProjectileEffects {
   pierce?: number;                              // remaining pierce count
   knockback?: number;
   isCrit?: boolean;
+  isMissile?: boolean;
 }
 
 let projectileCounter = 0;
@@ -36,6 +37,11 @@ export class Projectile extends Phaser.GameObjects.Container {
   private pierceRemaining: number;
   private chainHitIds: Set<string> = new Set();
   private readonly id: string;
+
+  get hasStun(): boolean { return (this.effects.stun ?? 0) > 0; }
+  get splashRadius(): number { return this.effects.splash ?? 0; }
+  get projectileColor(): number { return this.color; }
+  get isMissile(): boolean { return this.effects.isMissile === true; }
 
   constructor(
     scene: Phaser.Scene,
@@ -147,9 +153,9 @@ export class Projectile extends Phaser.GameObjects.Container {
       }
     }
 
-    // === Chain ===
+    // === Chain (starts from impact point even if target died) ===
     if (this.effects.chain && this.effects.chain.count > 0) {
-      this.processChain(enemies, hitEnemies);
+      this.processChain(enemies, hitEnemies, this.target);
     }
 
     // === Pierce ===
@@ -197,14 +203,16 @@ export class Projectile extends Phaser.GameObjects.Container {
     return fx;
   }
 
-  private processChain(enemies: Enemy[], alreadyHit: Enemy[]): void {
+  private processChain(enemies: Enemy[], alreadyHit: Enemy[], originTarget: Enemy | null): void {
     if (!this.effects.chain) return;
 
     let chainsLeft = this.effects.chain.count;
     const damageRatio = this.effects.chain.damageRatio;
     const hitSet = new Set(alreadyHit.map(e => e.enemyState.id));
     let chainDamage = Math.round(this.damage * damageRatio);
-    let lastHit = alreadyHit[0];
+    // Use first hit enemy, or fallback to original target for position reference
+    let lastHit: Enemy | null = alreadyHit[0] || originTarget;
+    if (!lastHit) return;
 
     // Chain range: use a generous search radius
     const chainRange = 200;
@@ -273,6 +281,11 @@ export class Projectile extends Phaser.GameObjects.Container {
   private drawProjectile(): void {
     this.bodyGraphics.clear();
 
+    if (this.effects.isMissile) {
+      this.drawMissile();
+      return;
+    }
+
     if (this.effects.isCrit) {
       // Crit projectile: larger, brighter
       this.bodyGraphics.fillStyle(0xffffff, 0.9);
@@ -288,7 +301,57 @@ export class Projectile extends Phaser.GameObjects.Container {
     }
   }
 
+  private drawMissile(): void {
+    const g = this.bodyGraphics;
+    const isCrit = this.effects.isCrit;
+    const s = isCrit ? 1.4 : 1; // crit missiles are bigger
+
+    // Exhaust glow (drawn first, behind body)
+    g.fillStyle(0xff6600, 0.6);
+    g.fillCircle(-7 * s, 0, 3.5 * s);
+    g.fillStyle(0xffcc00, 0.5);
+    g.fillCircle(-6 * s, 0, 2 * s);
+
+    // Missile body — elongated diamond/arrow
+    g.fillStyle(this.color, 1);
+    g.beginPath();
+    g.moveTo(9 * s, 0);         // nose
+    g.lineTo(-2 * s, -3.5 * s); // top shoulder
+    g.lineTo(-5 * s, -2 * s);   // top fin root
+    g.lineTo(-7 * s, -4 * s);   // top fin tip
+    g.lineTo(-5 * s, 0);        // tail center
+    g.lineTo(-7 * s, 4 * s);    // bottom fin tip
+    g.lineTo(-5 * s, 2 * s);    // bottom fin root
+    g.lineTo(-2 * s, 3.5 * s);  // bottom shoulder
+    g.closePath();
+    g.fillPath();
+
+    // White nose highlight
+    g.fillStyle(0xffffff, 0.7);
+    g.beginPath();
+    g.moveTo(9 * s, 0);
+    g.lineTo(4 * s, -1.5 * s);
+    g.lineTo(4 * s, 1.5 * s);
+    g.closePath();
+    g.fillPath();
+
+    // Outline
+    g.lineStyle(1, 0xffffff, isCrit ? 0.5 : 0.25);
+    g.beginPath();
+    g.moveTo(9 * s, 0);
+    g.lineTo(-2 * s, -3.5 * s);
+    g.lineTo(-5 * s, 0);
+    g.lineTo(-2 * s, 3.5 * s);
+    g.closePath();
+    g.strokePath();
+  }
+
   private spawnTrail(): void {
+    if (this.effects.isMissile) {
+      this.spawnMissileTrail();
+      return;
+    }
+
     const trail = this.scene.add.graphics();
     trail.fillStyle(this.color, 0.4);
     trail.fillCircle(0, 0, 2);
@@ -302,6 +365,46 @@ export class Projectile extends Phaser.GameObjects.Container {
       scaleY: 0.2,
       duration: 180,
       onComplete: () => trail.destroy(),
+    });
+  }
+
+  private spawnMissileTrail(): void {
+    const jx = (Math.random() - 0.5) * 4;
+    const jy = (Math.random() - 0.5) * 4;
+
+    // Smoke particle — gray, expands and fades
+    const smoke = this.scene.add.graphics();
+    const smokeR = 2.5 + Math.random() * 2;
+    smoke.fillStyle(0x888888, 0.45);
+    smoke.fillCircle(0, 0, smokeR);
+    smoke.setPosition(this.x + jx, this.y + jy);
+    smoke.setDepth(13);
+
+    this.scene.tweens.add({
+      targets: smoke,
+      alpha: 0,
+      scaleX: 2.2,
+      scaleY: 2.2,
+      duration: 350,
+      onComplete: () => smoke.destroy(),
+    });
+
+    // Fire particle — orange, shrinks fast
+    const fire = this.scene.add.graphics();
+    fire.fillStyle(0xff6600, 0.8);
+    fire.fillCircle(0, 0, 2);
+    fire.fillStyle(0xffcc00, 0.5);
+    fire.fillCircle(0, 0, 1);
+    fire.setPosition(this.x + jx * 0.5, this.y + jy * 0.5);
+    fire.setDepth(14);
+
+    this.scene.tweens.add({
+      targets: fire,
+      alpha: 0,
+      scaleX: 0.3,
+      scaleY: 0.3,
+      duration: 150,
+      onComplete: () => fire.destroy(),
     });
   }
 

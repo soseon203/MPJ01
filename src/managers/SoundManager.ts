@@ -225,6 +225,92 @@ export class SoundManager {
     this.playTone(1800, 0.06, 'sine', 0.04, 0.005, 0.04);
   }
 
+  /** Missile launch - rising whoosh + noise per missile */
+  orbAttackMissile(count: number = 1): void {
+    for (let i = 0; i < Math.min(count, 5); i++) {
+      setTimeout(() => {
+        this.playTone(200, 0.12, 'sawtooth', 0.08, 0.005, 0.1, 800);
+        this.playNoise(0.06, 0.04, 3000);
+      }, i * 50);
+    }
+  }
+
+  /** Missile explosion - low boom + debris crackle */
+  missileExplosion(): void {
+    this.playTone(120, 0.2, 'sawtooth', 0.14, 0.003, 0.17, 40);
+    this.playNoise(0.15, 0.1, 2500);
+    setTimeout(() => {
+      this.playNoise(0.1, 0.04, 4000, 'highpass');
+    }, 50);
+  }
+
+  /** Thunder strike - crack + sustained sizzle */
+  orbAttackThunder(): void {
+    // Initial thunder crack: sharp high-freq noise burst
+    this.playNoise(0.12, 0.15, 6000, 'highpass');
+    // Deep boom
+    this.playTone(80, 0.25, 'sawtooth', 0.15, 0.003, 0.2, 30);
+    // Sustained electric sizzle (delayed)
+    setTimeout(() => {
+      this.playNoise(0.4, 0.06, 4000, 'highpass');
+      this.playTone(1500, 0.3, 'sawtooth', 0.04, 0.01, 0.25, 800);
+    }, 100);
+    setTimeout(() => {
+      this.playNoise(0.3, 0.04, 3500, 'highpass');
+    }, 350);
+  }
+
+  /** Fire area - whoosh + crackling flames */
+  orbAreaFire(): void {
+    // Initial whoosh
+    this.playTone(300, 0.15, 'sawtooth', 0.10, 0.005, 0.12, 100);
+    this.playNoise(0.2, 0.08, 2000);
+    // Crackling
+    setTimeout(() => {
+      this.playNoise(0.3, 0.05, 3000, 'highpass');
+      this.playTone(600, 0.2, 'square', 0.03, 0.01, 0.15);
+    }, 80);
+  }
+
+  /** Ice area - crystalline shatter + sustained hum */
+  orbAreaIce(): void {
+    // Sharp crystal shatter
+    this.playTone(2000, 0.08, 'sine', 0.10, 0.002, 0.06, 800);
+    this.playNoise(0.1, 0.12, 5000, 'highpass');
+    // Low frost hum
+    setTimeout(() => {
+      this.playTone(120, 0.4, 'sine', 0.06, 0.01, 0.35);
+      this.playTone(180, 0.35, 'sine', 0.04, 0.01, 0.3);
+    }, 60);
+  }
+
+  /** Poison area - bubbling gurgle + hiss */
+  orbAreaPoison(): void {
+    // Bubbling
+    for (let i = 0; i < 4; i++) {
+      setTimeout(() => {
+        this.playTone(100 + Math.random() * 80, 0.06, 'sine', 0.06, 0.003, 0.04);
+      }, i * 40);
+    }
+    // Sustained hiss
+    setTimeout(() => {
+      this.playNoise(0.3, 0.05, 2500, 'highpass');
+    }, 120);
+  }
+
+  /** Void area - deep rumble + eerie reverse whoosh */
+  orbAreaVoid(): void {
+    // Deep rumble
+    this.playTone(50, 0.3, 'sawtooth', 0.12, 0.005, 0.25);
+    // Eerie reverse tone (rising)
+    this.playTone(100, 0.2, 'sine', 0.08, 0.005, 0.15, 600);
+    // Dark noise burst
+    setTimeout(() => {
+      this.playNoise(0.15, 0.06, 1500);
+      this.playTone(400, 0.15, 'triangle', 0.04, 0.01, 0.1, 150);
+    }, 100);
+  }
+
   // ===== Enemy Sounds =====
 
   /** Hit sound - thud (150Hz sine, 0.05s) */
@@ -304,6 +390,19 @@ export class SoundManager {
   waveStart(): void {
     this.playTone(300, 0.3, 'sawtooth', 0.12, 0.05, 0.25);
     setTimeout(() => this.playTone(450, 0.2, 'sawtooth', 0.1, 0.03, 0.15), 150);
+  }
+
+  /** Wave complete - short victory chime (C5-E5-G5, 0.3s) */
+  waveComplete(): void {
+    this.playTone(523.3, 0.1, 'sine', 0.08, 0.005, 0.08);
+    setTimeout(() => this.playTone(659.3, 0.12, 'sine', 0.08, 0.005, 0.1), 80);
+    setTimeout(() => this.playTone(784, 0.15, 'sine', 0.1, 0.005, 0.12), 160);
+  }
+
+  /** Game start - rising sweep (200->600Hz, 0.4s) */
+  gameStart(): void {
+    this.playTone(200, 0.3, 'sine', 0.1, 0.02, 0.25, 600);
+    setTimeout(() => this.playTone(400, 0.2, 'sine', 0.08, 0.01, 0.15, 800), 200);
   }
 
   /** Game over - sad descending (400->200->100Hz, 0.5s) */

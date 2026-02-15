@@ -39,6 +39,8 @@ export class Enemy extends Phaser.GameObjects.Container {
   private readonly HP_BAR_WIDTH = 24;
   private readonly HP_BAR_HEIGHT = 3;
   private readonly HP_BAR_OFFSET_Y: number;
+  private dotAccum = 0;
+  private dotDisplayTimer = 0;
 
   constructor(
     scene: Phaser.Scene,
@@ -264,6 +266,17 @@ export class Enemy extends Phaser.GameObjects.Container {
     if (totalDot > 0) {
       const dotDamage = totalDot * dt;
       this.enemyState.hp -= dotDamage;
+      this.dotAccum += dotDamage;
+
+      // Show accumulated DOT damage every 0.5s
+      this.dotDisplayTimer -= dt;
+      if (this.dotDisplayTimer <= 0) {
+        this.dotDisplayTimer = 0.5;
+        if (this.dotAccum >= 1) {
+          eventManager.emit(GameEvent.ENEMY_DAMAGED, this, Math.round(this.dotAccum));
+          this.dotAccum = 0;
+        }
+      }
 
       if (this.enemyState.hp <= 0) {
         this.enemyState.hp = 0;
@@ -360,65 +373,149 @@ export class Enemy extends Phaser.GameObjects.Container {
     }
   }
 
-  /** Normal: green circle */
+  /** Normal: 초록 원 + 눈 */
   private drawNormal(size: number, color: number): void {
+    // Body
     this.bodyGraphics.fillStyle(color, 1);
     this.bodyGraphics.fillCircle(0, 0, size);
-    this.bodyGraphics.lineStyle(1, 0xffffff, 0.3);
+    this.bodyGraphics.lineStyle(1.5, 0x228822, 0.8);
     this.bodyGraphics.strokeCircle(0, 0, size);
+    // Eyes
+    this.bodyGraphics.fillStyle(0xffffff, 0.9);
+    this.bodyGraphics.fillCircle(-size * 0.3, -size * 0.2, size * 0.25);
+    this.bodyGraphics.fillCircle(size * 0.3, -size * 0.2, size * 0.25);
+    this.bodyGraphics.fillStyle(0x000000, 1);
+    this.bodyGraphics.fillCircle(-size * 0.25, -size * 0.2, size * 0.12);
+    this.bodyGraphics.fillCircle(size * 0.35, -size * 0.2, size * 0.12);
   }
 
-  /** Fast: small blue circle with speed lines */
+  /** Fast: 파란 다이아몬드 + 속도 잔상 */
   private drawFast(size: number, color: number): void {
-    this.bodyGraphics.fillStyle(color, 1);
-    this.bodyGraphics.fillCircle(0, 0, size);
-    // Speed lines trailing behind
-    this.bodyGraphics.lineStyle(1, color, 0.5);
-    this.bodyGraphics.lineBetween(-size - 4, -2, -size - 8, -2);
-    this.bodyGraphics.lineBetween(-size - 3, 0, -size - 9, 0);
-    this.bodyGraphics.lineBetween(-size - 4, 2, -size - 8, 2);
+    const g = this.bodyGraphics;
+    // Diamond body
+    g.fillStyle(color, 1);
+    g.beginPath();
+    g.moveTo(0, -size * 1.3);
+    g.lineTo(size * 0.8, 0);
+    g.lineTo(0, size * 0.8);
+    g.lineTo(-size * 0.8, 0);
+    g.closePath();
+    g.fillPath();
+    // Outline
+    g.lineStyle(1.5, 0x2266dd, 0.9);
+    g.beginPath();
+    g.moveTo(0, -size * 1.3);
+    g.lineTo(size * 0.8, 0);
+    g.lineTo(0, size * 0.8);
+    g.lineTo(-size * 0.8, 0);
+    g.closePath();
+    g.strokePath();
+    // Speed trail
+    g.fillStyle(color, 0.3);
+    g.fillTriangle(-size * 0.8, -size * 0.3, -size * 2, 0, -size * 0.8, size * 0.3);
+    g.fillStyle(color, 0.15);
+    g.fillTriangle(-size * 1.5, -size * 0.2, -size * 2.8, 0, -size * 1.5, size * 0.2);
+    // Eye
+    g.fillStyle(0xffffff, 0.9);
+    g.fillCircle(0, -size * 0.3, size * 0.2);
+    g.fillStyle(0x000000, 1);
+    g.fillCircle(size * 0.05, -size * 0.3, size * 0.1);
   }
 
-  /** Tank: large gray square */
+  /** Tank: 회색 팔각형 + 방패 무늬 */
   private drawTank(size: number, color: number): void {
-    this.bodyGraphics.fillStyle(color, 1);
-    this.bodyGraphics.fillRect(-size, -size, size * 2, size * 2);
-    this.bodyGraphics.lineStyle(2, 0xffffff, 0.3);
-    this.bodyGraphics.strokeRect(-size, -size, size * 2, size * 2);
+    const g = this.bodyGraphics;
+    // Octagon body
+    g.fillStyle(color, 1);
+    g.beginPath();
+    for (let i = 0; i < 8; i++) {
+      const angle = (Math.PI * 2 * i) / 8 - Math.PI / 8;
+      const px = Math.cos(angle) * size;
+      const py = Math.sin(angle) * size;
+      if (i === 0) g.moveTo(px, py);
+      else g.lineTo(px, py);
+    }
+    g.closePath();
+    g.fillPath();
+    // Heavy border
+    g.lineStyle(3, 0xaaaaaa, 0.9);
+    g.beginPath();
+    for (let i = 0; i < 8; i++) {
+      const angle = (Math.PI * 2 * i) / 8 - Math.PI / 8;
+      const px = Math.cos(angle) * size;
+      const py = Math.sin(angle) * size;
+      if (i === 0) g.moveTo(px, py);
+      else g.lineTo(px, py);
+    }
+    g.closePath();
+    g.strokePath();
+    // Shield cross
+    g.lineStyle(2, 0x555555, 0.6);
+    g.lineBetween(0, -size * 0.6, 0, size * 0.6);
+    g.lineBetween(-size * 0.6, 0, size * 0.6, 0);
+    // Armor rivets
+    g.fillStyle(0xbbbbbb, 0.8);
+    const rivetR = size * 0.1;
+    g.fillCircle(-size * 0.5, -size * 0.5, rivetR);
+    g.fillCircle(size * 0.5, -size * 0.5, rivetR);
+    g.fillCircle(-size * 0.5, size * 0.5, rivetR);
+    g.fillCircle(size * 0.5, size * 0.5, rivetR);
   }
 
-  /** Tiny: small orange circle */
+  /** Tiny: 주황 삼각형 (빠르고 작은) */
   private drawTiny(size: number, color: number): void {
-    this.bodyGraphics.fillStyle(color, 1);
-    this.bodyGraphics.fillCircle(0, 0, size);
+    const g = this.bodyGraphics;
+    // Triangle body
+    g.fillStyle(color, 1);
+    g.fillTriangle(0, -size * 1.2, size * 0.9, size * 0.6, -size * 0.9, size * 0.6);
+    g.lineStyle(1, 0xcc8833, 0.8);
+    g.strokeTriangle(0, -size * 1.2, size * 0.9, size * 0.6, -size * 0.9, size * 0.6);
+    // Eye
+    g.fillStyle(0xffffff, 0.9);
+    g.fillCircle(0, 0, size * 0.3);
+    g.fillStyle(0x000000, 1);
+    g.fillCircle(0, 0, size * 0.15);
   }
 
-  /** Boss: large red spiky circle */
+  /** Boss: 빨간 왕관형 + 해골 마크 */
   private drawBoss(size: number, color: number): void {
-    // Inner body
-    this.bodyGraphics.fillStyle(color, 1);
-    this.bodyGraphics.fillCircle(0, 0, size);
-
-    // Spikes around the edge
-    this.bodyGraphics.fillStyle(color, 0.8);
-    const spikeCount = 8;
-    const spikeLength = size * 0.5;
+    const g = this.bodyGraphics;
+    // Outer aura
+    g.fillStyle(0xff0000, 0.1);
+    g.fillCircle(0, 0, size * 1.5);
+    g.fillStyle(0xff0000, 0.15);
+    g.fillCircle(0, 0, size * 1.25);
+    // Main body
+    g.fillStyle(color, 1);
+    g.fillCircle(0, 0, size);
+    // Crown spikes
+    const spikeCount = 10;
     for (let i = 0; i < spikeCount; i++) {
       const angle = (i / spikeCount) * Math.PI * 2;
-      const nextAngle = ((i + 0.5) / spikeCount) * Math.PI * 2;
-      const x1 = Math.cos(angle) * (size + spikeLength);
-      const y1 = Math.sin(angle) * (size + spikeLength);
-      const x2 = Math.cos(nextAngle) * size;
-      const y2 = Math.sin(nextAngle) * size;
-      const prevAngle = ((i - 0.5) / spikeCount) * Math.PI * 2;
-      const x0 = Math.cos(prevAngle) * size;
-      const y0 = Math.sin(prevAngle) * size;
-      this.bodyGraphics.fillTriangle(x0, y0, x1, y1, x2, y2);
+      const outerR = size * 1.4;
+      const innerR = size;
+      const halfAngle = Math.PI / spikeCount;
+      const x1 = Math.cos(angle) * outerR;
+      const y1 = Math.sin(angle) * outerR;
+      const x2 = Math.cos(angle + halfAngle) * innerR;
+      const y2 = Math.sin(angle + halfAngle) * innerR;
+      const x0 = Math.cos(angle - halfAngle) * innerR;
+      const y0 = Math.sin(angle - halfAngle) * innerR;
+      g.fillStyle(0xcc0000, 0.9);
+      g.fillTriangle(x0, y0, x1, y1, x2, y2);
     }
-
+    // Inner dark circle
+    g.fillStyle(0x220000, 0.7);
+    g.fillCircle(0, 0, size * 0.6);
+    // Skull eyes
+    g.fillStyle(0xff4444, 1);
+    g.fillCircle(-size * 0.25, -size * 0.15, size * 0.18);
+    g.fillCircle(size * 0.25, -size * 0.15, size * 0.18);
+    // Skull nose
+    g.fillTriangle(0, size * 0.05, -size * 0.08, size * 0.2, size * 0.08, size * 0.2);
     // Glowing outline
-    this.bodyGraphics.lineStyle(2, 0xff4444, 0.9);
-    this.bodyGraphics.strokeCircle(0, 0, size);
+    g.lineStyle(2.5, 0xff6666, 0.9);
+    g.strokeCircle(0, 0, size);
   }
 
   // ---- Cleanup ----

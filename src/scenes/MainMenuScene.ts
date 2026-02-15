@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
-import { GAME_WIDTH, GAME_HEIGHT, COLORS, FONT_FAMILY } from '../utils/constants';
+import { COLORS, FONT_FAMILY } from '../utils/constants';
+import type { GameLayout } from '../utils/types';
 
 export class MainMenuScene extends Phaser.Scene {
   constructor() {
@@ -9,19 +10,23 @@ export class MainMenuScene extends Phaser.Scene {
   create(): void {
     this.cameras.main.setBackgroundColor(COLORS.BG);
 
+    const layout = this.registry.get('gameLayout') as GameLayout;
+    const W = layout.gameWidth;
+    const H = layout.gameHeight;
+
     // Background particles
-    this.createBackgroundParticles();
+    this.createBackgroundParticles(W, H);
 
     // Title
-    const titleY = GAME_HEIGHT / 3 - 20;
-    const titleGlow = this.add.text(GAME_WIDTH / 2, titleY, '라스트타워', {
+    const titleY = H / 3 - 20;
+    const titleGlow = this.add.text(W / 2, titleY, '라스트타워', {
       fontSize: '56px',
       fontFamily: FONT_FAMILY,
       color: '#ffd700',
       align: 'center',
     }).setOrigin(0.5).setAlpha(0.3).setScale(1.05);
 
-    const title = this.add.text(GAME_WIDTH / 2, titleY, '라스트타워', {
+    this.add.text(W / 2, titleY, '라스트타워', {
       fontSize: '56px',
       fontFamily: FONT_FAMILY,
       color: '#ffeedd',
@@ -39,26 +44,26 @@ export class MainMenuScene extends Phaser.Scene {
     });
 
     // Subtitle
-    this.add.text(GAME_WIDTH / 2, titleY + 50, 'LAST TOWER', {
+    this.add.text(W / 2, titleY + 50, 'LAST TOWER', {
       fontSize: '18px',
       fontFamily: FONT_FAMILY,
       color: '#888899',
     }).setOrigin(0.5);
 
     // Start button
-    this.createButton(GAME_WIDTH / 2, GAME_HEIGHT / 2 + 60, '게임 시작', 260, 55, () => {
+    this.createButton(W / 2, H / 2 + 60, '게임 시작', 260, 55, () => {
       this.scene.start('GameScene');
     });
 
     // Description
-    this.add.text(GAME_WIDTH / 2, GAME_HEIGHT - 100,
+    this.add.text(W / 2, H - 100,
       '타워를 키우고, 스킬을 조합하고, 끝없는 웨이브에 맞서세요!', {
       fontSize: '14px',
       fontFamily: FONT_FAMILY,
       color: '#8888aa',
     }).setOrigin(0.5);
 
-    this.add.text(GAME_WIDTH / 2, GAME_HEIGHT - 70,
+    this.add.text(W / 2, H - 70,
       '모바일 & 데스크톱 지원  |  터치 & 클릭', {
       fontSize: '12px',
       fontFamily: FONT_FAMILY,
@@ -73,7 +78,7 @@ export class MainMenuScene extends Phaser.Scene {
     bg.lineStyle(2, 0x6688cc);
     bg.strokeRoundedRect(x - w / 2, y - h / 2, w, h, 8);
 
-    const text = this.add.text(x, y, label, {
+    this.add.text(x, y, label, {
       fontSize: '22px',
       fontFamily: FONT_FAMILY,
       color: '#ffffff',
@@ -100,8 +105,7 @@ export class MainMenuScene extends Phaser.Scene {
     hitArea.on('pointerdown', onClick);
   }
 
-  private createBackgroundParticles(): void {
-    // Floating star particles in background
+  private createBackgroundParticles(W: number, H: number): void {
     for (let i = 0; i < 30; i++) {
       const star = this.add.graphics();
       const size = Phaser.Math.Between(1, 3);
@@ -109,8 +113,8 @@ export class MainMenuScene extends Phaser.Scene {
       star.fillStyle(0xffffff, alpha);
       star.fillCircle(0, 0, size);
       star.setPosition(
-        Phaser.Math.Between(0, GAME_WIDTH),
-        Phaser.Math.Between(0, GAME_HEIGHT)
+        Phaser.Math.Between(0, W),
+        Phaser.Math.Between(0, H)
       );
 
       this.tweens.add({
