@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node:*)",
+      "Bash(npm --version:*)",
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:www.redblobgames.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(npx vite:*)"
+    ],
+    "additionalDirectories": [
+      "f:\\MoneyPJ\\01\\First\\.claude\\skills"
+    ]
+  }
+}
