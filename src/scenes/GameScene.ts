@@ -287,6 +287,8 @@ export class GameScene extends Phaser.Scene {
         this.gamePaused = false;
         this.recomputeStats();
         this.updateSynergies();
+        eventManager.emit(GameEvent.INITIAL_SELECTION_DONE);
+        eventManager.emit(GameEvent.GAME_START);
         this.startNextWave();
       }
     });
@@ -298,6 +300,7 @@ export class GameScene extends Phaser.Scene {
     this.gamePaused = true;
     this.shopAvailable = false;
     soundManager.shopOpen();
+    eventManager.emit(GameEvent.SHOP_OPENED);
 
     const cards = this.shopSystem.generateCards(
       this.currentWave, this.tower.towerState.level, this.tower.towerState.skills
@@ -375,11 +378,13 @@ export class GameScene extends Phaser.Scene {
           if (this.economy.spendGold(opt.cost)) {
             const leveled = this.tower.addExp(opt.exp);
             soundManager.expGained();
+            eventManager.emit(GameEvent.EXP_GAINED, opt.exp);
             this.vfx.expText(this.towerX, this.towerY - 30, opt.exp);
             if (leveled) {
               soundManager.levelUp();
               this.vfx.levelUpEffect(this.towerX, this.towerY);
               this.recomputeStats();
+              eventManager.emit(GameEvent.LEVEL_UP, this.tower.towerState.level);
             }
             // Refresh
             container.destroy();
@@ -404,6 +409,7 @@ export class GameScene extends Phaser.Scene {
     container.add(closeHit);
     closeHit.on('pointerdown', () => {
       soundManager.shopClose();
+      eventManager.emit(GameEvent.SHOP_CLOSED);
       container.destroy();
       this.popupContainer = null;
       this.gamePaused = false;
@@ -494,10 +500,12 @@ export class GameScene extends Phaser.Scene {
         if (!this.economy.canAfford(newCard.cost)) return;
         this.economy.spendGold(newCard.cost);
         this.removeOrb(owned.id);
+        eventManager.emit(GameEvent.SKILL_REMOVED, owned.id);
         this.tower.removeSkill(owned.id);
         this.tower.addSkill(newCard.skillId);
         this.addOrb(newCard.skillId);
         soundManager.skillPurchase();
+        eventManager.emit(GameEvent.SKILL_REPLACED, newCard.skillId, owned.id);
         this.recomputeStats();
         this.updateSynergies();
         container.destroy();
@@ -903,11 +911,13 @@ export class GameScene extends Phaser.Scene {
     const expBonus = 1 + (this.computedStats?.expBonusPercent || 0);
     const exp = Math.floor(state.expReward * expBonus);
     const leveled = this.tower.addExp(exp);
+    eventManager.emit(GameEvent.EXP_GAINED, exp);
     this.vfx.expText(state.x, state.y - 25, exp);
     if (leveled) {
       soundManager.levelUp();
       this.vfx.levelUpEffect(this.towerX, this.towerY);
       this.recomputeStats();
+      eventManager.emit(GameEvent.LEVEL_UP, this.tower.towerState.level);
     }
 
     // Kill count

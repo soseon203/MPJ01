@@ -7,7 +7,8 @@
       "WebFetch(domain:github.com)",
       "WebFetch(domain:www.redblobgames.com)",
       "WebFetch(domain:raw.githubusercontent.com)",
-      "Bash(npx vite:*)"
+      "Bash(npx vite:*)",
+      "Bash(git config:*)"
     ],
     "additionalDirectories": [
       "f:\\MoneyPJ\\01\\First\\.claude\\skills"

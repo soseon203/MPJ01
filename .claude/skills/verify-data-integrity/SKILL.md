@@ -1,6 +1,6 @@
 ---
 name: verify-data-integrity
-description: 게임 데이터 파일의 구조적 무결성과 밸런스 규칙 준수를 검증합니다. 타워/적/카드/스테이지 데이터 수정 후 사용.
+description: 게임 데이터 파일의 구조적 무결성과 밸런스 규칙 준수를 검증합니다. 스킬/적/상점/상수 데이터 수정 후 사용.
 ---
 
 # 게임 데이터 무결성 검증
@@ -9,181 +9,188 @@ description: 게임 데이터 파일의 구조적 무결성과 밸런스 규칙 
 
 게임 데이터 파일이 구조적 규칙과 밸런스 제약 조건을 준수하는지 검증합니다:
 
-1. **타워 레벨 구조** — 각 타워가 정확히 5개 레벨을 가지며, 마지막 레벨의 upgradeCost가 0인지
-2. **타워 스킬 규칙** — 스킬 해금 레벨이 1-5 범위이고, 각 타워의 스킬이 3개인지
-3. **데이터 값 유효성** — 비용/데미지/사거리 등 수치가 양수인지
-4. **카드 데이터 규칙** — 카드 ID 고유성, rarity/category 유효 값, effects 배열 비어있지 않은지
-5. **스테이지 데이터 규칙** — 레이아웃이 유효하고, 스폰/출구가 존재하며, 웨이브 데이터가 비어있지 않은지
+1. **스킬 데이터 유효성** — 64개 스킬의 baseCost, maxLevel, effects, tags, rarity가 유효한지
+2. **시너지 데이터 유효성** — 45개 시너지의 requirements가 유효한 태그를 참조하는지
+3. **적 데이터 유효성** — 5종 적의 baseHp, speed, size, reward가 유효한지
+4. **상점 확률 합계** — 각 확률 브라켓의 합이 1.0인지
+5. **레벨 보너스 구조** — LEVEL_SHOP_BONUS가 10개 배열이며 각각 4개 요소인지
+6. **EXP/레벨 테이블** — EXP_TABLE 10개, TOWER_LEVEL_STATS 10개, 값 유효성
+7. **스킬 레어리티 분포** — 각 레어리티별 최소 스킬 수 충족
 
 ## When to Run
 
-- 타워 데이터(비용, 스탯, 스킬) 수정 후
+- 스킬 데이터(효과, 비용, 태그) 수정 후
 - 적 데이터 수정 후
-- 카드 데이터 추가/수정 후
-- 스테이지 데이터 추가/수정 후
-- 웨이브 생성기 로직 수정 후
+- 시너지 데이터 추가/수정 후
+- 상점 확률/레벨 보너스 수정 후
+- EXP 테이블, 타워 레벨 스탯 수정 후
 
 ## Related Files
 
 | File | Purpose |
 |------|---------|
-| `src/data/towerData.ts` | `TOWER_DATA` — 10종 타워, 각 5레벨 스탯 + 3스킬 |
-| `src/data/enemyData.ts` | `ENEMY_DATA` — 8종 적 기본 데이터 |
-| `src/data/cardData.ts` | `CARD_POOL` — 32장 카드 (14 common, 9 rare, 5 epic, 4 legendary) |
-| `src/data/stageData.ts` | `STAGES` — 5개 스테이지 설정 |
-| `src/data/waveGenerator.ts` | `generateStageWaves()` — 웨이브 생성 로직 |
-| `src/utils/types.ts` | 데이터 인터페이스 정의 (TowerData, EnemyData, CardData, StageConfig) |
-| `src/utils/constants.ts` | 게임 상수 (MAX_TOWER_LEVEL, STARTING_GOLD 등) |
+| `src/data/skillData.ts` | `SKILLS` 레코드 — 64개 스킬 정의, `SKILL_LIST`, `getSkillsByRarity()` |
+| `src/data/synergyData.ts` | `SYNERGIES` 배열 — 45개 시너지 정의 |
+| `src/data/enemyData.ts` | `ENEMY_DATA` 레코드 — 5종 적 데이터 |
+| `src/data/waveData.ts` | `generateWave()` — 무한 웨이브 생성 함수 |
+| `src/utils/types.ts` | 데이터 인터페이스 (SkillData, EnemyData, SynergyData, SkillRarity 등) |
+| `src/utils/constants.ts` | 상수 (SHOP_PROBABILITIES, LEVEL_SHOP_BONUS, EXP_TABLE, TOWER_LEVEL_STATS 등) |
 
 ## Workflow
 
-### Step 1: 타워 레벨 구조 검증
+### Step 1: 스킬 데이터 구조 검증
 
-**파일:** `src/data/towerData.ts`
+**파일:** `src/data/skillData.ts`
 
-**검사:** 각 타워의 `levels` 배열이 정확히 5개 요소를 가지는지 확인.
-
-```bash
-# 각 타워의 levels 배열 크기 확인 (levels 배열 내 { 개수 세기)
-grep -c "damage:" src/data/towerData.ts
-```
-
-**탐지:** 각 타워 객체를 파싱하여 `levels` 배열 길이를 확인.
-
-**PASS 기준:**
-- 모든 타워의 `levels.length === 5`
-- 모든 타워의 `levels[4].upgradeCost === 0` (마지막 레벨)
-- 레벨 1-4의 `upgradeCost > 0`
-
-**위반 시 수정:** 누락된 레벨을 추가하거나, 마지막 레벨의 upgradeCost를 0으로 설정.
-
-### Step 2: 타워 스킬 규칙 검증
-
-**파일:** `src/data/towerData.ts`
-
-**검사:** 각 타워의 `skills` 배열 규칙:
-- 정확히 3개의 스킬 보유
-- 스킬 해금 레벨이 1-5 범위
-- 스킬 ID가 `TowerSkillId` 유니온에 정의된 값
-
-**탐지:** 각 타워 객체에서 `skills` 배열을 파싱하여 검증.
+**검사:** 각 스킬의 필수 필드가 유효한지 확인:
+- `baseCost > 0`
+- `maxLevel > 0` (일반적으로 3~10)
+- `effects` 객체가 비어있지 않음 (최소 1개 효과 키)
+- `tags` 배열이 비어있지 않음 (최소 1개 태그)
+- `rarity`가 유효한 SkillRarity 값
+- `color`가 유효한 hex 색상 (양수 정수)
+- `passive`가 boolean
 
 ```bash
-# 각 타워의 skill 수 확인
-grep "unlockLevel:" src/data/towerData.ts
+# 스킬 수 확인
+grep "id:" src/data/skillData.ts | wc -l
 ```
 
-**PASS 기준:**
-- 모든 타워의 `skills.length === 3`
-- 모든 스킬의 `unlockLevel`이 1, 2, 3, 4, 5 중 하나
-- 같은 타워 내 스킬의 `unlockLevel` 값이 모두 다름
+**탐지:** `skillData.ts`를 읽고 각 스킬 객체를 파싱하여 필드 검증.
 
-**위반 시 수정:** 스킬 수를 조정하거나 unlockLevel 값을 수정.
+**PASS 기준:** 모든 64개 스킬이 유효.
 
-### Step 3: 타워 수치 유효성 검증
+**위반 시 수정:** 유효하지 않은 필드를 적절한 값으로 수정.
 
-**파일:** `src/data/towerData.ts`
+### Step 2: 스킬 레어리티 분포 검증
 
-**검사:** 모든 수치 값이 유효한 범위인지 확인:
-- `cost > 0`
-- 모든 레벨의 `damage > 0`, `range > 0`, `fireRate > 0`, `projectileSpeed >= 0`
-- `size.cols > 0`, `size.rows > 0`
+**파일:** `src/data/skillData.ts`
 
-**탐지:** 데이터 파일을 읽고 각 수치를 검증.
+**검사:** 각 레어리티별 스킬 수가 최소 기준을 충족하는지:
+- normal: 10개 이상
+- magic: 10개 이상
+- rare: 8개 이상
+- unique: 6개 이상
+- mythic: 5개 이상
+- legend: 5개 이상
 
-**PASS 기준:** 모든 수치가 유효 범위 내.
+```bash
+# 레어리티별 스킬 수 확인
+grep "rarity:" src/data/skillData.ts
+```
 
-**위반:** 0 이하의 비용, 음수 데미지 등.
+**PASS 기준:** 모든 레어리티가 최소 기준 충족.
+
+### Step 3: 시너지 데이터 유효성 검증
+
+**파일:** `src/data/synergyData.ts`, `src/utils/types.ts`
+
+**검사:**
+- 각 시너지의 `id`가 고유한지
+- `requirements` 배열이 비어있지 않은지
+- 각 requirement의 `tag`가 유효한 `SkillTag` 또는 `ElementTag` 값인지
+- 각 requirement의 `count > 0`
+- `tier`가 'basic', 'element', 'advanced' 중 하나인지
+
+```bash
+# 시너지 수 확인
+grep "id:" src/data/synergyData.ts | wc -l
+```
+
+**PASS 기준:** 모든 시너지 데이터가 유효.
 
 ### Step 4: 적 데이터 유효성 검증
 
 **파일:** `src/data/enemyData.ts`
 
 **검사:**
-- `maxHp > 0`, `speed > 0`, `reward >= 0`, `size > 0`
-- `flying`은 boolean
-- `splitId`가 사용된 경우 유효한 EnemyId 값인지
-- `shieldHp` 사용 시 `shieldRegen`도 함께 정의되었는지
+- `baseHp > 0`
+- `speed > 0`
+- `goldReward >= 0`
+- `expReward >= 0`
+- `size > 0`
+- `color`가 유효한 hex 색상 (양수 정수)
+- `id`가 유효한 `EnemyId` 값
 
 ```bash
 # 적 데이터 필드 확인
-grep "id:" src/data/enemyData.ts
+grep "baseHp:" src/data/enemyData.ts
 ```
 
-**PASS 기준:** 모든 적 데이터가 유효.
+**PASS 기준:** 모든 5종 적 데이터가 유효.
 
-### Step 5: 카드 데이터 유효성 검증
+### Step 5: 상점 확률 합계 검증
 
-**파일:** `src/data/cardData.ts`
+**파일:** `src/utils/constants.ts`
 
-**검사:**
-- 모든 카드 ID가 고유한지
-- `rarity` 값이 `common`, `rare`, `epic`, `legendary` 중 하나인지
-- `category` 값이 `offense`, `defense`, `economy`, `utility` 중 하나인지
-- `effects` 배열이 비어있지 않은지
-- 카드 수 분포: common 10+, rare 5+, epic 3+, legendary 2+
+**검사:** `SHOP_PROBABILITIES`의 각 브라켓(w0, w10, w20, w30, w40)의 6개 확률값 합이 1.0인지 확인 (부동소수점 오차 허용: ±0.001).
 
 ```bash
-# 카드 rarity 분포 확인
-grep "rarity:" src/data/cardData.ts
+# SHOP_PROBABILITIES 확인
+grep -A1 "w0\|w10\|w20\|w30\|w40" src/utils/constants.ts
 ```
 
-**PASS 기준:** 모든 카드가 유효하고, rarity 분포가 적절.
+**추가 검사:**
+- `INITIAL_SELECT_1`의 합이 1.0인지
+- `INITIAL_SELECT_2`의 합이 1.0인지
+- 각 배열이 정확히 6개 요소인지
 
-### Step 6: 스테이지 데이터 유효성 검증
+**PASS 기준:** 모든 확률 배열의 합이 1.0 (±0.001).
 
-**파일:** `src/data/stageData.ts`
+### Step 6: 레벨 보너스 구조 검증
+
+**파일:** `src/utils/constants.ts`
 
 **검사:**
-- 각 스테이지에 고유한 `id`가 있는지
-- `layout.cols > 0`, `layout.rows > 0`
-- `layout.spawns`가 비어있지 않고, 그리드 범위 내인지
-- `layout.exits`가 비어있지 않고, 그리드 범위 내인지
-- `waves`가 비어있지 않은지
-- `difficulty` 값이 유효한지 (`normal`, `elite`, `boss`)
+- `LEVEL_SHOP_BONUS`가 정확히 10개 배열 (타워 레벨 1~10)
+- 각 배열이 정확히 4개 요소 [rare, unique, mythic, legend]
+- 모든 값이 0 이상
+- 레벨이 올라갈수록 보너스가 비감소 (단조 증가)
 
 ```bash
-# 스테이지 ID 확인
-grep "id:" src/data/stageData.ts
+# LEVEL_SHOP_BONUS 구조 확인
+grep -c "\[" src/utils/constants.ts
 ```
 
-**PASS 기준:** 모든 스테이지 데이터가 유효.
+**PASS 기준:** 구조와 값이 모두 유효.
 
-### Step 7: 스테이지 레이아웃-그리드 정합성 검증
+### Step 7: EXP/레벨 테이블 검증
 
-**파일:** `src/data/stageData.ts`, `src/utils/constants.ts`
+**파일:** `src/utils/constants.ts`
 
 **검사:**
-- 스테이지의 `layout.cols`와 `layout.rows`가 `GRID_COLS`/`GRID_ROWS` 상수와 일치하는지
-- `blocked` 좌표가 `spawns`/`exits`와 겹치지 않는지
+- `EXP_TABLE`이 정확히 10개 요소 (레벨 1~10)
+- 값이 단조 증가 (각 레벨이 이전 레벨보다 큼)
+- `EXP_TABLE[0] === 0` (레벨 1 시작)
+- `TOWER_LEVEL_STATS`가 정확히 10개 요소
+- 각 요소의 `damage > 0`, `fireRate > 0`, `range > 0`
+- 레벨이 올라갈수록 damage, fireRate, range가 비감소
 
 ```bash
-# 그리드 상수 확인
-grep "GRID_COLS\|GRID_ROWS" src/utils/constants.ts
+# EXP_TABLE, TOWER_LEVEL_STATS 확인
+grep "EXP_TABLE\|TOWER_LEVEL_STATS" src/utils/constants.ts
 ```
 
-**PASS 기준:** 모든 레이아웃이 그리드 상수와 정합.
-
-**위반 시 수정:** 레이아웃 값을 그리드 상수에 맞게 조정.
+**PASS 기준:** 모든 테이블이 유효한 구조와 값.
 
 ## Output Format
 
 ```markdown
 | # | 검사 항목 | 상태 | 상세 |
 |---|----------|------|------|
-| 1 | 타워 레벨 구조 (5레벨) | PASS/FAIL | 문제 타워 목록 |
-| 2 | 타워 스킬 규칙 (3스킬, 유효 레벨) | PASS/FAIL | 문제 타워/스킬 목록 |
-| 3 | 타워 수치 유효성 | PASS/FAIL | 유효하지 않은 값 목록 |
-| 4 | 적 데이터 유효성 | PASS/FAIL | 유효하지 않은 적 목록 |
-| 5 | 카드 데이터 유효성 | PASS/FAIL | 문제 카드 목록 |
-| 6 | 스테이지 데이터 유효성 | PASS/FAIL | 문제 스테이지 목록 |
-| 7 | 스테이지-그리드 정합성 | PASS/FAIL | 불일치 항목 |
+| 1 | 스킬 데이터 구조 (64개) | PASS/FAIL | 유효하지 않은 스킬 목록 |
+| 2 | 스킬 레어리티 분포 | PASS/FAIL | 미달 레어리티 목록 |
+| 3 | 시너지 데이터 유효성 (45개) | PASS/FAIL | 문제 시너지 목록 |
+| 4 | 적 데이터 유효성 (5종) | PASS/FAIL | 유효하지 않은 적 목록 |
+| 5 | 상점 확률 합계 | PASS/FAIL | 합계가 1.0이 아닌 브라켓 |
+| 6 | 레벨 보너스 구조 | PASS/FAIL | 구조 문제 상세 |
+| 7 | EXP/레벨 테이블 | PASS/FAIL | 테이블 문제 상세 |
 ```
 
 ## Exceptions
 
 다음은 **위반이 아닙니다**:
 
-1. **레이저 타워의 `projectileSpeed: 0`** — 레이저 타워(`isLaser: true`)는 투사체가 아닌 지속 빔을 사용하므로 `projectileSpeed: 0`이 정상
-2. **splitter 적의 `splitId`가 다른 적 종류를 참조** — 분열 메커니즘으로 의도된 설계. `splitId`가 `ENEMY_DATA`에 존재하는 유효한 EnemyId이면 OK
-3. **카드 효과의 음수 value** — `tower_cost_mult: -0.05` 등 할인 효과나 `range_add: -0.3` 등 트레이드오프는 의도된 밸런스 설계
+1. **패시브 스킬의 빈 effects** — `passive: true`인 스킬이라도 `effects` 객체에 수치 정의가 있어야 함. 단, 효과가 단순 퍼센트 증가인 경우 `{ damage: { base: 0.15, perLevel: 0.05 } }` 형태의 비율값도 유효
+2. **적의 `armor` 필드 생략** — `armor`는 선택적 필드(`armor?: number`)이므로, 정의하지 않으면 기본값 0으로 처리됨. 이는 정상
+3. **상점 확률의 미세한 부동소수점 오차** — 합계가 0.999~1.001 범위이면 허용 (부동소수점 연산 오차)
